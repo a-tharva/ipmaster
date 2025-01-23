@@ -1,1 +1,23 @@
-__pycache__
+# Python
+__pycache__/
+
+# Distribution
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+lib/
+
+# For data
+*.json
+*.db
+
+# ideas
+ideas.txt
+
+# Workspace
+*.code-workspace
+
+# vs
+.vs
