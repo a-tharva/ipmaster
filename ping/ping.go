@@ -3,10 +3,10 @@ package ping
 import (
 	"fmt"
 
-	"github.com/prometheus-community/pro-bing"
+	probing "github.com/prometheus-community/pro-bing"
 )
 
-func start_ping() string {
+func startPing() string {
 	ipAddress := "8.8.8.8"
 
 	pinger, err := probing.NewPinger(ipAddress)
