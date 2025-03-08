@@ -8,6 +8,7 @@ import (
 
 	"github.com/a-tharva/ipmaster/ipinfo"
 	"github.com/a-tharva/ipmaster/ping"
+	"github.com/a-tharva/ipmaster/tracert"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -55,12 +56,55 @@ func showIPInfo(app *tview.Application) {
 func showTracert(app *tview.Application) {
 	// Placeholder for tracert (to be implemented)
 	tracertView := tview.NewTextView().
-		SetText("Tracert Page (Not Implemented Yet)").SetTextAlign(tview.AlignCenter)
+		SetText("Tracert Page").SetTextAlign(tview.AlignCenter)
+
+	inputField := tview.NewInputField().
+		SetLabel("Enter destination IP: ").
+		SetFieldWidth(0)
+
+	resultView := tview.NewTextView().
+		SetLabel("Enter an IP to see the traceroute path...").
+		SetWordWrap(true)
+
+	inputField.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			destIP := strings.TrimSpace(inputField.GetText())
+			if net.ParseIP(destIP) == nil {
+				inputField.SetFieldBackgroundColor(tcell.ColorRed)
+				inputField.SetLabel(fmt.Sprintf("Invalid IP: %s ", destIP))
+				return
+			}
+
+			inputField.SetFieldBackgroundColor(tcell.ColorBlue)
+			inputField.SetLabel("Enter destination IP: ")
+
+			resultView.SetText(fmt.Sprintf("Tracing route to %s...", destIP))
+
+			//Create and configure Traacer
+			tracer, err := tracert.NewTracer(destIP, app, resultView)
+			if err != nil {
+				resultView.SetText(fmt.Sprintf("Traceroute to %s failed: %v", destIP, err))
+				return
+			}
+			// SetPrivileged(true) is default; only affects non-Windows
+			go func() {
+				err := tracer.Run()
+				if err != nil {
+					app.QueueUpdateDraw(func() {
+						resultView.SetText(fmt.Sprintf("Traceroute to %s failed: %v", destIP, err))
+					})
+				}
+			}()
+		}
+	})
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(tracertView, 0, 1, true)
+		AddItem(tracertView, 0, 1, true).
+		AddItem(inputField, 1, 1, true).
+		AddItem(resultView, 0, 5, true)
 
-	app.SetRoot(flex, true).Draw()
+	app.SetRoot(flex, true)
+	app.SetFocus(inputField)
 	setBackCapture(app)
 }
 
