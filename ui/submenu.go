@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/a-tharva/ipmaster/ipinfo"
+	"github.com/a-tharva/ipmaster/iptables"
 	"github.com/a-tharva/ipmaster/ping"
+	"github.com/a-tharva/ipmaster/ports"
 	"github.com/a-tharva/ipmaster/tracert"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -181,15 +183,6 @@ func showPing(app *tview.Application) {
 	app.SetRoot(flex, true)
 	app.SetFocus(inputField)
 	setBackCapture(app)
-
-	// app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-	// 	if event.Key() == tcell.KeyEscape {
-	// 		stopContinuousPing() // Stop all continuous pings
-	// 		Create(app)
-	// 		return nil
-	// 	}
-	// 	return event
-	// })
 }
 
 func stopContinuousPing() {
@@ -199,4 +192,80 @@ func stopContinuousPing() {
 	}
 	ping.StopPinging()
 	// log.Println("Continuous ping stopped")
+}
+
+func showPorts(app *tview.Application) {
+	portsView := tview.NewTextView().
+		SetText("Port Scan Page").SetTextAlign(tview.AlignCenter)
+
+	inputField := tview.NewInputField().
+		SetLabel("Enter target IP: ").
+		SetFieldWidth(0)
+
+	resultView := tview.NewTextView().
+		SetText("Enter an IP to scan for open ports...").
+		SetWordWrap(true)
+
+	inputField.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			targetIP := strings.TrimSpace(inputField.GetText())
+			if net.ParseIP(targetIP) == nil {
+				inputField.SetFieldBackgroundColor(tcell.ColorRed)
+				inputField.SetText(fmt.Sprintf("Invalid IP: %s", targetIP))
+				return
+			}
+
+			inputField.SetFieldBackgroundColor(tcell.ColorBlue)
+			resultView.SetText(fmt.Sprintf("Scanning ports on %s...", targetIP))
+
+			scanner, err := ports.NewPortScanner(targetIP, app, resultView)
+			if err != nil {
+				resultView.SetText(fmt.Sprintf("Port scan failed: %v", err))
+				return
+			}
+			go func() {
+				err := scanner.ScanPorts()
+				if err != nil {
+					app.QueueUpdateDraw(func() {
+						resultView.SetText(fmt.Sprintf("Port scan on %s failed: %v", targetIP, err))
+					})
+				}
+			}()
+		}
+	})
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(portsView, 0, 1, true).
+		AddItem(inputField, 1, 1, true).
+		AddItem(resultView, 0, 5, true)
+
+	app.SetRoot(flex, true)
+	app.SetFocus(inputField)
+	setBackCapture(app)
+}
+
+func showIPTables(app *tview.Application) {
+	iptablesView := tview.NewTextView().
+		SetText("IP Tables Page").SetTextAlign(tview.AlignCenter)
+
+	resultView := tview.NewTextView().
+		SetText("Fetching IP routing table...").
+		SetWordWrap(true)
+
+	ipt := iptables.NewIPTables(app, resultView)
+	go func() {
+		err := ipt.ShowRoutingTable()
+		if err != nil {
+			app.QueueUpdateDraw(func() {
+				resultView.SetText(fmt.Sprintf("Failed to fetch IP routing table: %v", err))
+			})
+		}
+	}()
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(iptablesView, 0, 1, true).
+		AddItem(resultView, 0, 5, true)
+
+	app.SetRoot(flex, true)
+	setBackCapture(app)
 }

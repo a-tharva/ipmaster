@@ -9,6 +9,8 @@ var ipOptions = []string{
 	"ip info",
 	"tracert",
 	"ping",
+	"port",
+	"ip tables",
 }
 
 func Start() error {
@@ -63,6 +65,10 @@ func handleTableSelection(app *tview.Application, row int) {
 		showTracert(app)
 	case 2:
 		showPing(app)
+	case 3:
+		showPorts(app)
+	case 4:
+		showIPTables(app)
 	}
 }
 
