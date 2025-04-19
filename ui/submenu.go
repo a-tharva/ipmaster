@@ -3,9 +3,11 @@ package ui
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/a-tharva/ipmaster/bgp"
 	"github.com/a-tharva/ipmaster/ipinfo"
 	"github.com/a-tharva/ipmaster/iptables"
 	"github.com/a-tharva/ipmaster/ping"
@@ -267,5 +269,58 @@ func showIPTables(app *tview.Application) {
 		AddItem(resultView, 0, 5, true)
 
 	app.SetRoot(flex, true)
+	setBackCapture(app)
+}
+
+func showBGP(app *tview.Application) {
+	bgpView := tview.NewTextView().
+		SetText("BGP Routes Page").SetTextAlign(tview.AlignCenter)
+
+	inputField := tview.NewInputField().
+		SetLabel("Enter IP prefix (e.g., 8.8.8.0/24): ").
+		SetFieldWidth(0)
+
+	resultView := tview.NewTextView().
+		SetText("Enter an IP prefix to see BGP routing information...").
+		SetWordWrap(true)
+
+	inputField.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			prefix := strings.TrimSpace(inputField.GetText())
+			// Basic prefix validation (e.g., "x.x.x.x/y")
+			parts := strings.Split(prefix, "/")
+			if len(parts) != 2 || net.ParseIP(parts[0]) == nil {
+				inputField.SetFieldBackgroundColor(tcell.ColorRed)
+				inputField.SetText(fmt.Sprintf("Invalid prefix: %s", prefix))
+				return
+			}
+			if mask, err := strconv.Atoi(parts[1]); err != nil || mask < 0 || mask > 32 {
+				inputField.SetFieldBackgroundColor(tcell.ColorRed)
+				inputField.SetText(fmt.Sprintf("Invalid mask: %s", parts[1]))
+				return
+			}
+
+			inputField.SetFieldBackgroundColor(tcell.ColorBlue)
+			resultView.SetText(fmt.Sprintf("Fetching BGP routes for %s...", prefix))
+
+			bgpInstance := bgp.NewBGP(prefix, app, resultView)
+			go func() {
+				err := bgpInstance.ShowBGPRoutes()
+				if err != nil {
+					app.QueueUpdateDraw(func() {
+						resultView.SetText(fmt.Sprintf("Failed to fetch BGP routes for %s: %v", prefix, err))
+					})
+				}
+			}()
+		}
+	})
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(bgpView, 0, 1, true).
+		AddItem(inputField, 1, 1, true).
+		AddItem(resultView, 0, 5, true)
+
+	app.SetRoot(flex, true)
+	app.SetFocus(inputField)
 	setBackCapture(app)
 }

@@ -11,6 +11,7 @@ var ipOptions = []string{
 	"ping",
 	"port",
 	"ip tables",
+	"bgp",
 }
 
 func Start() error {
@@ -69,6 +70,8 @@ func handleTableSelection(app *tview.Application, row int) {
 		showPorts(app)
 	case 4:
 		showIPTables(app)
+	case 5:
+		showBGP(app)
 	}
 }
 
